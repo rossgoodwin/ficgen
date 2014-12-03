@@ -11,6 +11,7 @@ from zipfile import ZipFile
 import nltk
 import en
 
+from g_paths import gPaths
 from erowid_experience_paths import erowidExpPaths
 from tropes_character import characterTropeFiles
 from tropes_setting import settingTropeFiles
@@ -63,7 +64,7 @@ args = parser.parse_args()
 TSV = (args.length/2.0 + args.realism/6.0 + args.passion/3.0)/1000.0
 if 'fan' in args.genre:
 	TSV += 1.0
-TSV = int(math.ceil(3.0*TSV))
+TSV = int(math.ceil(2.0*TSV))
 print "TSV:\t" + str(TSV)
 
 # cc = actual number of extra characters / MAKE EXPONENTIAL
@@ -89,9 +90,20 @@ if bool(set(['sci-fi', 'horror']) & set(args.genre)):
 	SCP += 1.0
 if bool(set(['tech', 'no god', 'reality', 'nature', 'god']) & set(args.conflict)):
 	SCP += 1.0
-SCP = int(math.ceil(3.0*SCP))
+SCP = int(math.ceil(2.0*SCP))
 print "SCP:\t" + str(SCP)
 
+# den = length (in chars) of project gutenerg excerpts
+DEN = args.density*10
+
+# ggv = gutenberg excerpt volume
+GGV = (args.length + args.density)/500.0
+if 'literary' in args.genre:
+	GGV += 2.0
+GGV = int(math.ceil(5.0*GGV))
+
+# chl = chapter length as percent of potential chapter length
+CHL = args.length/1000.0
 
 
 # file text fetchers
@@ -110,12 +122,14 @@ def get_zip(fp):
 	txtName = noExtName + ".txt"
 
 	ff = ZipFile(fp, 'r')
-	oo = ff.open(txtName, 'r')
+	fileNames = ff.namelist()
+	oo = ff.open(fileNames[0], 'r')
 	tt = oo.read()
 	oo.close()
 	ff.close()
 
 	return tt
+
 
 
 # CLASSES
@@ -129,19 +143,92 @@ class Character(object):
 		self.scenes = []
 		self.drugTrips = []
 		self.scpReports = [] 
+		self.gbergExcerpts = []
 		self.friends = [] # list of objects
+
+
+class Chapter(object):
+
+	def __init__(self, charObj):
+		self.charObj = charObj
+		self.title = ""
+		self.blocks = []
+
+
+	def title_maker(self):
+		charTitle = ri(0, 2)
+
+		if not bool(charTitle):
+
+			ttl = self.charObj.firstName + " " + self.charObj.lastName
+
+		else:
+			
+			titleSource = ri(0, 3)
+
+			if titleSource == 0:
+				textSource = rc(self.charObj.scenes)
+			elif titleSource == 1:
+				textSource = rc(self.charObj.drugTrips)
+			elif titleSource == 2:
+				textSource = rc(self.charObj.scpReports)
+			elif titleSource == 3:
+				textSource = rc(self.charObj.gbergExcerpts)
+
+			tokens = nltk.word_tokenize(textSource)
+			index = ri(0, len(tokens)-10)
+			titleLen = ri(2, 6)
+
+			ttl = ' '.join(tokens[index:index+titleLen])
+
+		self.title = ttl
+
+
+	def chapter_builder(self):
+		blockList = [self.charObj.introDesc] + self.charObj.scenes + self.charObj.drugTrips + self.charObj.scpReports + self.charObj.gbergExcerpts
+		
+		random.shuffle(blockList)
+
+		stopAt = int(math.ceil(CHL*len(blockList)))
+
+		blockList = blockList[:stopAt]
+
+		self.blocks = blockList
+
+		# self.blocks.append("stuff")
 
 
 
 class Novel(object):
 
 	def __init__(self):
-		# Note that character argvs are used in
-		# Character class above. They are not
-		# used in this class.
-		self.argvalues = args
+		self.characters = [] # list of characters
+		self.chapters = [] # list of chapters
 
-	# Characters
+	def generate(self):
+		self.make_chars()
+		self.assemble_chapters()
+		self.make_tex_file()
+
+
+	def make_tex_file(self):
+		# Look at PlotGen for this part
+
+
+	def assemble_chapters(self):
+		novel = []
+
+		for c in self.characters:
+			novel.append(Chapter(c))
+
+		for ch in novel:
+			ch.title_maker()
+			ch.chapter_builder()
+
+		random.shuffle(novel) # MAYBE RETHINK THIS LATER
+
+		self.chapters = novel
+
 
 	def make_chars(self):
 		# establish gender ratio
@@ -174,10 +261,14 @@ class Novel(object):
 		# establish list of scp articles
 		scps = rs(scpPaths, len(chars)*SCP)
 
+		# establish list of gberg excerpts
+		gbergs = rs(gPaths.values(), len(chars)*GGV)
+
 		i = 0
 		j = 0
 		m = 0
 		p = 0
+		s = 0
 		for c in chars:
 
 			# make friends
@@ -200,13 +291,17 @@ class Novel(object):
 			for q in range(SCP):
 				c.scpReports.append(self.personal_scp([c]+c.friends, scps[p+q]))
 
+			# add gberg excerpts
+			for t in range(GGV):
+				c.gbergExcerpts.append(self.personal_gberg([c]+c.friends, gbergs[s+t]))
+
 			i += 1
 			j += TSV
 			m += DTV
 			p += SCP
+			s += GGV
 
-
-		return chars
+		self.characters = chars
 
 
 	def personal_trope(self, charList, filePath):
@@ -382,9 +477,66 @@ class Novel(object):
 
 
 
-	# def personal_gberg(self, charList, gPath):
+	def personal_gberg(self, charList, gPath):
 
-	# 	return final_text
+		full_text = ""
+		while full_text == "":
+			try:
+				full_text = get_zip(gPath)
+			except:
+				full_text = ""
+				gPath = rc(gPaths.values())
+
+		endPart = full_text.split("*** START OF THIS PROJECT GUTENBERG EBOOK ")[-1]
+		theMeat = endPart.split("*** END OF THIS PROJECT GUTENBERG EBOOK")[0]
+
+		theMeat = string.replace(theMeat, "\r\n", " ")
+
+		
+		if len(theMeat) < DEN+5:
+			text = theMeat
+		else:
+			startLoc = int(len(theMeat)/2.0 - DEN/2.0)
+			text = theMeat[startLoc:startLoc+DEN]
+
+		spLoc = text.find(" ")
+		text = text[spLoc+1:]
+
+		try:
+			pos = en.sentence.tag(text)
+			wordtag = map(list, zip(*pos))
+			words = wordtag[0]
+			tags = wordtag[1]
+
+			for i in range(len(words)):
+
+				charRef = rc([rc(charList), charList[0]])
+
+				if tags[i] == "PRP":
+					words[i] = charRef.firstName
+				elif tags[i] == "PRP$":
+					words[i] = charRef.firstName+"\'s"
+				elif tags[i] in ["VBD", "VBG", "VBN", "VBZ"]:
+					try:
+						words[i] = en.verb.past(words[i], person=3, negate=False)
+					except:
+						pass
+				else:
+					pass
+
+			punc = [".", ",", ";", ":", "!", "?"]
+
+			for i in range(len(words)):
+				if words[i] in punc:
+					words[i] = '\b'+words[i]
+
+			final_text = " ".join(words)
+
+		except:
+			final_text = ""
+
+
+		return final_text
 
 
 	def print_chars(self):
@@ -410,8 +562,11 @@ class Novel(object):
 			for p in character.scpReports:
 				print p
 			print '\n\n'
-
-
+			print 'GBERG EXCERPTS'
+			print '\n\n'
+			for q in character.gbergExcerpts:
+				print q
+			print '\n\n'
 
 
 
@@ -419,6 +574,15 @@ class Novel(object):
 foobar = Novel()
 foobar.print_chars()
 
+# randomGfile = rc(gPaths.keys())
+# full_text = get_zip(gPaths[randomGfile])
+
+# endPart = full_text.split("*** START OF THIS PROJECT")[-1]
+# true_text = endPart.split("*** END OF THIS PROJECT")[0]
+
+# text = true_text.split('\r\n\r\n')
+
+# print text
 
 
 
