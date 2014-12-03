@@ -1,0 +1,4 @@
+python ficgen.py --charnames "Ross_Goodwin" "Lily_Beale-Wirsing" "Jack_Hatchett" "Dan_Yelin" --title "The Big Bang" --length 500 --charcount 500 --genre "sci-fi" "beat" --conflict "tech" "no god" --passion 500 --verbosity 500 --realism 500 --density 500 --accessibility 500 --depravity 500 --linearity 500 --narrator 3 obj omn
+
+python ficgen.py --charnames "Ross_Goodwin" "Lily_Beale-Wirsing" "Jack_Hatchett" "Dan_Yelin" --title "Cosmic Latte" --length 500 --charcount 500 --genre "sci-fi" "beat" --conflict "tech" "no god" --passion 500 --verbosity 500 --realism 500 --density 500 --accessibility 500 --depravity 500 --linearity 500 --narrator 3 obj omn
+

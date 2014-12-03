@@ -1,9 +1,11 @@
 // FICTION GENERATOR BY ROSS GOODWIN
 // http://rossgoodwin.com/ficgen
 
+import java.io.*;
+
 
 // paths and such
-String sysPath = "/Users/rg/Projects/plotgen/new/plotgen/";
+String sysPath = "/Users/rg/Projects/plotgen/ficgen/";
 String novPath = "/Users/rg/Google Drive/novels/";
 String rgPath = "/Users/rg/";
 String novelTitle = "You Forgot To Write A Title";
@@ -147,6 +149,7 @@ void draw() {
     rect(generateButton.x, generateButton.y+45, 100, 10);
   }
   
+  
   // GOOOOOO!!!
   if (generation && frameCount >= beepBeep) {
     generate();
@@ -156,27 +159,110 @@ void draw() {
 }
 
 void generate() {
+  String[] genreArgArr = new String[genreButtons.length];
+  for (int i=0; i<genreButtons.length; i++) {
+    if (genreButtons[i].pressed) {
+      genreArgArr[i] = genreButtons[i].label.toLowerCase();
+    } else {
+      genreArgArr[i] = "";
+    }
+  }
+  String genreArgs = "";
+  for (int i=0; i<genreArgArr.length; i++) {
+    if (!genreArgArr[i].equals("")) {
+      genreArgs += (genreArgArr[i]+" ");
+    }
+  }
+  genreArgs = trim(genreArgs);
+  String[] genreArgsList = split(genreArgs, " ");
   
-  String novelFile = sysPath + "output/" + novelTitle + ".tex";
+  String[] conflictArgArr = new String[conflictButtons.length];
+  for (int i=0; i<conflictButtons.length; i++) {
+    if (conflictButtons[i].pressed) {
+      conflictArgArr[i] = conflictButtons[i].label.toLowerCase();
+    } else {
+      conflictArgArr[i] = "";
+    }
+  }
+  String conflictArgs = trim(join(conflictArgArr, " "));
+
+  // String[] narrArgArr = new String[narrButtons.length];
+  // for (int i=0; i<narrButtons.length; i++) {
+  //   if (narrButtons[i].pressed) {
+  //     narrArgArr[i] = narrButtons[i].label.toLowerCase();
+  //   } else {
+  //     narrArgArr[i] = "";
+  //   }
+  // }
+  // String narrArgs = trim(join(narrArgArr, " "));
   
   // GENERATE NOVEL
-  String[] paramsNovel = {"python", sysPath+"novelizer_icm.py", novelTitle, firstName+" "+lastName};
+  String[] paramsNovel = {
+    "/usr/bin/python", sysPath+"ficgen.py",
+    "--title", trim(novelTitle), "--charnames", trim(firstName)+"_"+trim(lastName), 
+    "--genre", genreArgsList[0], genreArgsList[1], genreArgsList[2], 
+    "--conflict", conflictArgs,
+    "--passion", str(conSli(passionSlider.boxPos.x)), "--verbosity", str(conSli(verbositySlider.boxPos.x)),
+    "--realism", str(conSli(realismSlider.boxPos.x)), "--length", str(conSli(lengthSlider.boxPos.x)),
+    "--charcount", str(conSli(charCountSlider.boxPos.x)), "--density", str(conSli(densitySlider.boxPos.x)),
+    "--accessibility", str(conSli(accessibilitySlider.boxPos.x)), "--depravity", str(conSli(depravitySlider.boxPos.x)),
+    "--linearity", str(conSli(linearitySlider.boxPos.x))
+  };
+  
+  
+  
   try {
+    // ProcessBuilder pb = new ProcessBuilder(paramsNovel);
+    // pb.redirectErrorStream(true);
+    
+    // Process p = pb.start();
+    // InputStreamReader isr = new InputStreamReader(p.getInputStream());
+    // BufferedReader br = new BufferedReader(isr);
+    
+    // String lineRead;
+    // while ((lineRead = br.readLine()) != null) {
+    //   println(lineRead);
+    // }
     Process p = exec(paramsNovel);
-    p.waitFor();
+    
+    int x = p.waitFor();
+    println(x);
   }
   catch (Exception err) {
     err.printStackTrace();
   }
   
+  // String novelParams = join(paramsNovel, " ");
+  // println(novelParams);
+  
+  //String[] novelParameters = {};
+  
+  // try {
+  //   Process p = exec(paramsNovel);
+  //   int x = p.waitFor();
+  //   println(x);
+  //   println("NOVEL GENERATION SUCCESS");
+  // }
+  // catch (Exception err) {
+  //   err.printStackTrace();
+  //   println("NOVEL GENERATION FAILED");
+  // }
+  
+  // println("WAITING...");
+  // delay(30000);
+  // println("WE GOT THERE!");
+  
   // CONVERT TO PDF
-  String[] paramsPDF = {"/usr/texbin/pdflatex", novelFile};
+  String novelFile = sysPath + "output/" + novelTitle + ".tex";
+  String[] paramsPDF = {"/usr/texbin/pdflatex", "-interaction", "nonstopmode", novelFile};
   try {
-    Process p = exec(paramsPDF);
-    p.waitFor();
+    Process p0 = exec(paramsPDF);
+    p0.waitFor();
+    println("PDF CONVERSION SUCCESS");
   }
   catch (Exception err) {
     err.printStackTrace();
+    println("PDF CONVERSION FAILED");
   }
   
   // filenames
@@ -188,8 +274,8 @@ void generate() {
   // take out the trash (remove log files)
   String[] paramsRm = {"rm", auxName, logName, outName};
   try {
-    Process p = exec(paramsRm);
-    p.waitFor();
+    Process p1 = exec(paramsRm);
+    p1.waitFor();
   }
   catch (Exception err) {
     err.printStackTrace();
@@ -198,18 +284,18 @@ void generate() {
   // move the cargo (novelTitle.pdf goes to Google Drive/novels/)
   String[] paramsMv = {"cp", pdfName, novPath};
   try {
-    Process p = exec(paramsMv);
-    p.waitFor();
+    Process p2 = exec(paramsMv);
+    p2.waitFor();
   }
   catch (Exception err) {
     err.printStackTrace();
   }
   
   // send email
-  String[] paramsSend = {"python", sysPath+"sendnovel.py", toEmail, pdfName};
+  String[] paramsSend = {"python", sysPath+"sendnovel.py", trim(toEmail), pdfName};
   try {
-    Process p = exec(paramsSend);
-    p.waitFor();
+    Process p3 = exec(paramsSend);
+    p3.waitFor();
   }
   catch (Exception err) {
     err.printStackTrace();
@@ -292,6 +378,11 @@ void mouseReleased() {
   for (int i=0; i<sliders.length; i++) {
     sliders[i].active = false;
   }
+}
+
+int conSli(float x) {
+  int value = int(map(x-860.0, 0, 300, 0, 999));
+  return value;
 }
 
 void keyPressed() {

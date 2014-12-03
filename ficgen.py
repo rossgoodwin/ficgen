@@ -30,6 +30,10 @@ from surnames import surnames
 # [ ] add livejournal
 # [X] add SCP
 
+# System Path
+
+sysPath = "/Users/rg/Projects/plotgen/ficgen/"
+
 
 # Argument Values
 
@@ -43,17 +47,17 @@ narr_list = ['first', '1st', '1', 'third', '3rd', '3', 'alt', 'alternating', 'su
 parser = argparse.ArgumentParser(description='Story Parameters')
 parser.add_argument('--charnames', nargs='*', help="Character Names")
 parser.add_argument('--title', help="Story Title")
-parser.add_argument('--length', help="Story Length (0-999)", type=int)
-parser.add_argument('--charcount', help="Character Count (0-999)", type=int)
+parser.add_argument('--length', help="Story Length (0-999)")
+parser.add_argument('--charcount', help="Character Count (0-999)")
 parser.add_argument('--genre', nargs='*', help="Genre", choices=genre_list)
 parser.add_argument('--conflict', nargs='*', help="Conflict", choices=conflict_list)
-parser.add_argument('--passion', help="Passion (0-999)", type=int)
-parser.add_argument('--verbosity', help="Verbosity (0-999)", type=int)
-parser.add_argument('--realism', help="Realism (0-999)", type=int)
-parser.add_argument('--density', help="Density (0-999)", type=int)
-parser.add_argument('--accessibility', help="Accessibility (0-999)", type=int)
-parser.add_argument('--depravity', help="Depravity (0-999)", type=int)
-parser.add_argument('--linearity', help="Linearity (0-999)", type=int)
+parser.add_argument('--passion', help="Passion (0-999)")
+parser.add_argument('--verbosity', help="Verbosity (0-999)")
+parser.add_argument('--realism', help="Realism (0-999)")
+parser.add_argument('--density', help="Density (0-999)")
+parser.add_argument('--accessibility', help="Accessibility (0-999)")
+parser.add_argument('--depravity', help="Depravity (0-999)")
+parser.add_argument('--linearity', help="Linearity (0-999)")
 parser.add_argument('--narrator', nargs='*', help="Narrative PoV", choices=narr_list)
 args = parser.parse_args()
 
@@ -61,55 +65,50 @@ args = parser.parse_args()
 # ESTABLISH SYSTEM-WIDE COEFFICIENTS/CONSTANTS
 
 # tsv = trope setting volume
-TSV = (args.length/2.0 + args.realism/6.0 + args.passion/3.0)/1000.0
+TSV = (int(args.length)/2.0 + int(args.realism)/6.0 + int(args.passion)/3.0)/1000.0
 if 'fan' in args.genre:
 	TSV += 1.0
 TSV = int(math.ceil(2.0*TSV))
-print "TSV:\t" + str(TSV)
 
 # cc = actual number of extra characters / MAKE EXPONENTIAL
-CC = int(math.exp(math.ceil(args.charcount/160.0))/2.0)+10
-print "CC:\t" + str(CC)
+CC = int(math.exp(math.ceil(int(args.charcount)/160.0))/2.0)+10
 
 # chc = chapter count
-CHC = int(math.exp(math.ceil(args.length/160.0))/2.0)+10
-print "CHC:\t" + str(CHC)
+CHC = int(math.exp(math.ceil(int(args.length)/160.0))/2.0)+10
 
 # dtv = drug trip volume
-DTV = (args.length/4.0 + args.realism/12.0 + args.passion/6.0 + args.depravity*1.5)/1000.0
+DTV = (int(args.length)/4.0 + int(args.realism)/12.0 + int(args.passion)/6.0 + int(args.depravity)*1.5)/1000.0
 if 'beat' in args.genre:
 	DTV += 1.0
 if 'society' in args.conflict:
 	DTV += 1.0
 DTV = int(math.ceil(5.0*DTV))
-print "DTV:\t" + str(DTV)
 
 # scp = scp article volume
-SCP = args.length/1000.0
+SCP = int(args.length)/1000.0
 if bool(set(['sci-fi', 'horror']) & set(args.genre)):
 	SCP += 1.0
 if bool(set(['tech', 'no god', 'reality', 'nature', 'god']) & set(args.conflict)):
 	SCP += 1.0
 SCP = int(math.ceil(2.0*SCP))
-print "SCP:\t" + str(SCP)
 
 # den = length (in chars) of project gutenerg excerpts
-DEN = args.density*10
+DEN = int(args.density)*10
 
 # ggv = gutenberg excerpt volume
-GGV = (args.length + args.density)/500.0
+GGV = (int(args.length) + int(args.density))/500.0
 if 'literary' in args.genre:
 	GGV += 2.0
 GGV = int(math.ceil(5.0*GGV))
 
 # chl = chapter length as percent of potential chapter length
-CHL = args.length/1000.0
+CHL = int(args.length)/1000.0
 
 
 # file text fetchers
 def get_file(fp):
 
-	f = open(fp, 'r')
+	f = open(sysPath+fp, 'r')
 	t = f.read()
 	f.close()
 
@@ -176,10 +175,13 @@ class Chapter(object):
 				textSource = rc(self.charObj.gbergExcerpts)
 
 			tokens = nltk.word_tokenize(textSource)
-			index = ri(0, len(tokens)-10)
-			titleLen = ri(2, 6)
 
-			ttl = ' '.join(tokens[index:index+titleLen])
+			if len(tokens) > 20:
+				index = ri(0, len(tokens)-10)
+				titleLen = ri(2, 6)
+				ttl = ' '.join(tokens[index:index+titleLen])
+			else:
+				ttl = self.charObj.firstName + " " + self.charObj.lastName
 
 		self.title = ttl
 
@@ -202,6 +204,7 @@ class Chapter(object):
 class Novel(object):
 
 	def __init__(self):
+		self.title = args.title
 		self.characters = [] # list of characters
 		self.chapters = [] # list of chapters
 
@@ -213,6 +216,69 @@ class Novel(object):
 
 	def make_tex_file(self):
 		# Look at PlotGen for this part
+		outputFileName = self.title
+
+		latex_special_char_1 = ['&', '%', '$', '#', '_', '{', '}']
+		latex_special_char_2 = ['~', '^', '\\']
+
+		outputFile = open(sysPath+"output/"+outputFileName+".tex", 'w')
+
+		openingTexLines = ["\\documentclass[12pt]{book}",
+						   "\\usepackage{ucs}",
+						   "\\usepackage[utf8x]{inputenc}",
+						   "\\usepackage{hyperref}",
+						   "\\title{"+outputFileName+"}",
+						   "\\author{collective consciousness fiction generator\\\\http://rossgoodwin.com/ficgen}",
+						   "\\date{\\today}",
+						   "\\begin{document}",
+						   "\\maketitle"]
+
+		closingTexLine = "\\end{document}"
+
+		for line in openingTexLines:
+			outputFile.write(line+"\n\r")
+		outputFile.write("\n\r\n\r")
+
+		x = 1
+		for ch in self.chapters:
+
+			outputFile.write("\\chapter{"+str(x)+"}\n\r")
+			outputFile.write("\n\r\n\r")
+
+			rawText = '\n\r\n\r\n\r'.join(ch.blocks)
+
+			try:
+				rawText = rawText.decode('utf8')
+			except:
+				pass
+			try:
+				rawText = rawText.encode('ascii', 'ignore')
+			except:
+				pass
+
+			i = 0
+			for char in rawText:
+
+				if char == "\b":
+					outputFile.seek(-1, 1)
+				elif char in latex_special_char_1 and rawText[i-1] != "\\":
+					outputFile.write("\\"+char)
+				elif char in latex_special_char_2 and not rawText[i+1] in latex_special_char_1:
+					outputFile.write("-")
+				else:
+					outputFile.write(char)
+
+				i += 1
+
+			outputFile.write("\n\r\n\r")
+			x += 1
+
+		outputFile.write("\n\r\n\r")
+		outputFile.write(closingTexLine)
+
+		outputFile.close()
+
+		print '\"'+sysPath+'output/'+outputFileName+'.tex\"'
 
 
 	def assemble_chapters(self):
@@ -572,19 +638,7 @@ class Novel(object):
 
 
 foobar = Novel()
-foobar.print_chars()
-
-# randomGfile = rc(gPaths.keys())
-# full_text = get_zip(gPaths[randomGfile])
-
-# endPart = full_text.split("*** START OF THIS PROJECT")[-1]
-# true_text = endPart.split("*** END OF THIS PROJECT")[0]
-
-# text = true_text.split('\r\n\r\n')
-
-# print text
-
-
+foobar.generate()
 
 
 # GENERAL FUBAR AREA
