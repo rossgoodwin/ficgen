@@ -28,7 +28,7 @@ from surnames import surnames
 # [ ] subtrope / sub-trope
 # [ ] add yelp reviews
 # [ ] add livejournal
-# [ ] add SCP
+# [X] add SCP
 
 
 # Argument Values
